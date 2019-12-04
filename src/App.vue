@@ -23,7 +23,7 @@ export default Vue.extend({
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
-  color: red;
+  color: black;
   margin-top: 60px;
   background-color: @white-bg-color;
   .logo {

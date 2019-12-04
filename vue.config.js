@@ -6,17 +6,18 @@
 const path = require('path')
 const proxyTable = require('./vueConfig/proxyTable')
 const componentsOptions = require('./vueConfig/componentsOptions')
+const qrCode = require('qrcode-terminal')
+const internalIp = require('internal-ip')
+const chalk = require('chalk')
 
-function addStyleResource(rule) {
-  console.log(rule)
-  rule
-    .use('style-resource')
-    .loader('style-resources-loader')
-    .options({
-      patterns: [
-        path.resolve(__dirname, './src/assets/style/variables.less') // 需要全局导入的less
-      ]
-    })
+const devServerConfig = {
+  port: 8084,
+  https: false
+}
+
+function showDevServerWarning() {
+  console.log(chalk.yellow('[vue-cli-plugin-qrcode] No devServer config found'));
+  console.log(chalk.yellow('[vue-cli-plugin-qrcode] No QR code will be displayed'));
 }
 
 module.exports = {
@@ -25,6 +26,7 @@ module.exports = {
 
   // 代理服务器
   devServer: {
+    ...devServerConfig,
     overlay: {
       warnings: false,
       errors: true
@@ -38,11 +40,31 @@ module.exports = {
       less: componentsOptions
     }
   },
-  // 此方法导入全局less变量无效
-  /*chainWebpack: config => {
-    const types = ['vue-modules', 'vue', 'normal-modules', 'normal']
-    types.forEach(type =>
-      addStyleResource(config.module.rule('less').oneOf(type))
-    )
-  }*/
+  chainWebpack: config=> {
+    // 二维码生成插件
+    config.plugin('qrcode').use({
+      apply(compiler) {
+        if (process.env.NODE_ENV === 'development') {
+          if (devServerConfig) {
+            compiler.hooks.done.tap('Print QR Code Plugin', () => {
+              const protocol = devServerConfig.https ? 'https' : 'http';
+              const port = devServerConfig.port || '';
+              internalIp.v4().then((ip) => {
+                let address = `${protocol}://${ip}${port && `:${port}`}`;
+                address = address + (address.includes('?') ? '&t=' : '?t=') + Date.now();
+                console.log(chalk.green('scan qrCode: '));
+                qrCode.generate(address, {small: true}, (code) => {
+                  console.log(code)
+                });
+              }).catch((err) => {
+                console.error(err);
+              });
+            })
+          } else {
+            showDevServerWarning()
+          }
+        }
+      }
+    })
+  }
 }
